@@ -1,0 +1,33 @@
+# Environment variables (your API keys — never commit this)
+.env
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Python cache/compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# IDE/editor clutter
+.vscode/
+.idea/
+.DS_Store
+
+# Logs
+*.log
+
+# Local SQLite databases, if you ever add one
+*.db
+*.sqlite3
+
+# Jupyter notebook checkpoints, if you use any for testing
+.ipynb_checkpoints/

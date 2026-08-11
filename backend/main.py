@@ -10,7 +10,7 @@ from typing import List
 from datetime import datetime, timezone
 
 import numpy as np
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -88,6 +88,15 @@ doc_store = []  # in-memory document chunks: [{"text": ..., "embedding": ...}]
 # -------------------------------------------------------------------
 # DATA SHAPES (what a valid request must look like)
 # -------------------------------------------------------------------
+class SignUpRequest(BaseModel):
+    email: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
 class Message(BaseModel):
     role: str
     content: str
@@ -172,6 +181,7 @@ async def get_weather(city: str):
         }
 
 
+
 def save_message(conversation_id: str, role: str, content: str, image_url: str = None):
     """Insert one message, and bump the conversation's updated_at
     so the sidebar can sort by most-recently-active conversation."""
@@ -209,6 +219,46 @@ def maybe_set_title(conversation_id: str, first_message: str):
     if conv and conv["title"] == "New Chat":
         conv["title"] = new_title
 
+
+# -------------------------------------------------------------------
+# AUTH — Supabase email/password, role-based personas
+# -------------------------------------------------------------------
+# -------------------------------------------------------------------
+# AUTH — Supabase email/password
+# -------------------------------------------------------------------
+async def require_auth(authorization: str | None = Header(default=None)):
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    token = authorization.replace("Bearer ", "")
+    try:
+        user_response = supabase.auth.get_user(token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    if not user_response or not user_response.user:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    return user_response.user
+
+
+async def get_current_profile(user=Depends(require_auth)):
+    """Fetches role/persona info tied to the authenticated user."""
+    result = supabase.table("profiles").select("*").eq("id", user.id).single().execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return result.data
+
+
+def require_role(*allowed_roles: str):
+    """Gate a route to specific personas: Depends(require_role("ngo_admin"))"""
+    async def checker(profile=Depends(get_current_profile)):
+        if profile["role"] not in allowed_roles:
+            raise HTTPException(status_code=403, detail="Forbidden for this role")
+        return profile
+    return checker
 
 # -------------------------------------------------------------------
 # ROUTES
@@ -412,3 +462,47 @@ async def chat_vision(
     save_message(conversation_id, "assistant", reply)
 
     return {"reply": reply}
+
+@app.post("/api/auth/signup")
+def signup(req: SignUpRequest):
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    result = supabase.auth.sign_up({"email": req.email, "password": req.password})
+    if not result.user:
+        raise HTTPException(status_code=400, detail="Signup failed")
+
+    supabase.table("profiles").insert({
+        "id": result.user.id,
+        "email": req.email,
+    }).execute()
+
+    return {
+        "user_id": result.user.id,
+        "email": result.user.email,
+        "access_token": result.session.access_token if result.session else None,
+        "refresh_token": result.session.refresh_token if result.session else None,
+    }
+
+
+@app.post("/api/auth/login")
+def login(req: LoginRequest):
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    try:
+        result = supabase.auth.sign_in_with_password({"email": req.email, "password": req.password})
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    return {
+        "user_id": result.user.id,
+        "email": result.user.email,
+        "access_token": result.session.access_token,
+        "refresh_token": result.session.refresh_token,
+    }
+
+
+@app.get("/api/auth/me")
+def me(user=Depends(require_auth)):
+    return {"user_id": user.id, "email": user.email}

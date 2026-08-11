@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import ChatWindow from "../components/ChatWindow";
 import ChatInput from "../components/ChatInput";
 import Sidebar from "../components/Sidebar";
@@ -20,6 +21,16 @@ const SettingsIcon = (
   </svg>
 );
 
+// Every authenticated request needs this. Centralizing it here means
+// there's exactly one place to fix if the token storage key ever changes.
+function authHeaders(extra = {}) {
+  const token = localStorage.getItem("token");
+  return {
+    ...extra,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 function ChatPage() {
   const [conversations, setConversations] = useState([]);
   const [conversationId, setConversationId] = useState(null);
@@ -28,6 +39,7 @@ function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [attachment, setAttachment] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navigate = useNavigate();
 
   // On first load: fetch the sidebar list, and reopen whatever
   // conversation the user was last in (remembered via localStorage).
@@ -37,13 +49,27 @@ function ChatPage() {
     if (savedId) loadConversation(savedId);
   }, []);
 
+  // If a request comes back 401 (expired/invalid token), bounce to login
+  // instead of leaving the UI in a broken half-loaded state.
+  const handleUnauthorized = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("refresh_token");
+    navigate("/login");
+  };
+
   const fetchConversations = async () => {
-    const res = await fetch(`${API_BASE}/api/conversations`);
+    const res = await fetch(`${API_BASE}/api/conversations`, {
+      headers: authHeaders(),
+    });
+    if (res.status === 401) return handleUnauthorized();
     if (res.ok) setConversations(await res.json());
   };
 
   const loadConversation = async (id) => {
-    const res = await fetch(`${API_BASE}/api/conversations/${id}/messages`);
+    const res = await fetch(`${API_BASE}/api/conversations/${id}/messages`, {
+      headers: authHeaders(),
+    });
+    if (res.status === 401) return handleUnauthorized();
     if (!res.ok) return;
     const data = await res.json();
 
@@ -80,9 +106,13 @@ function ChatPage() {
 
     const res = await fetch(`${API_BASE}/api/conversations`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ title: "New Chat" }),
     });
+    if (res.status === 401) {
+      handleUnauthorized();
+      throw new Error("Unauthorized");
+    }
     const data = await res.json();
 
     setConversationId(data.id);
@@ -105,9 +135,13 @@ function ChatPage() {
 
     const res = await fetch(`${API_BASE}/api/summarize`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ messages: toSummarize, previous_summary: currentSummary }),
     });
+    if (res.status === 401) {
+      handleUnauthorized();
+      throw new Error("Unauthorized");
+    }
     const data = await res.json();
     return { summary: data.summary, kept };
   };
@@ -124,9 +158,13 @@ function ChatPage() {
 
     const res = await fetch(`${API_BASE}/api/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ conversation_id: convId, messages: newMessages, summary: newSummary }),
     });
+    if (res.status === 401) {
+      handleUnauthorized();
+      throw new Error("Unauthorized");
+    }
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -159,7 +197,17 @@ function ChatPage() {
     formData.append("question", question);
     formData.append("conversation_id", convId);
 
-    const res = await fetch(`${API_BASE}/api/chat/vision`, { method: "POST", body: formData });
+    // Don't set Content-Type manually for FormData — the browser needs to
+    // add its own multipart boundary. authHeaders() only adds Authorization here.
+    const res = await fetch(`${API_BASE}/api/chat/vision`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: formData,
+    });
+    if (res.status === 401) {
+      handleUnauthorized();
+      throw new Error("Unauthorized");
+    }
     const data = await res.json();
 
     setMessages((prev) => {
@@ -175,7 +223,15 @@ function ChatPage() {
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch(`${API_BASE}/api/upload/document`, { method: "POST", body: formData });
+    const res = await fetch(`${API_BASE}/api/upload/document`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: formData,
+    });
+    if (res.status === 401) {
+      handleUnauthorized();
+      throw new Error("Unauthorized");
+    }
     const data = await res.json();
 
     setMessages((prev) => [

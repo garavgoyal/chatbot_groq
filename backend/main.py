@@ -82,7 +82,7 @@ WEATHER_TOOLS = [
 ]
 RECENT_MESSAGE_LIMIT = 8   # how many latest chat messages to send in full
 
-doc_store = []  # in-memory document chunks: [{"text": ..., "embedding": ...}]
+doc_store = []  # in-memory document chunks: [{"text": ..., "embedding": ..., "user_id": ...}]
 
 
 # -------------------------------------------------------------------
@@ -135,12 +135,13 @@ def build_context(req: ChatRequest):
     return context
 
 
-def retrieve_relevant(query: str, k: int = 3):
-    """Find the k most relevant document chunks for this query."""
-    if not doc_store:
+def retrieve_relevant(query: str, user_id: str, k: int = 3):
+    """Find the k most relevant document chunks for this query, scoped to this user."""
+    user_chunks = [d for d in doc_store if d.get("user_id") == user_id]
+    if not user_chunks:
         return []
     q_emb = embedder.encode(query)
-    scored = sorted(doc_store, key=lambda d: np.dot(d["embedding"], q_emb), reverse=True)
+    scored = sorted(user_chunks, key=lambda d: np.dot(d["embedding"], q_emb), reverse=True)
     return [d["text"] for d in scored[:k]]
 
 
@@ -220,11 +221,23 @@ def maybe_set_title(conversation_id: str, first_message: str):
         conv["title"] = new_title
 
 
+def get_owned_conversation(conversation_id: str, user_id: str):
+    """Fetch a conversation only if it belongs to this user, else 404.
+    Used to stop users reading/deleting/posting into each other's conversations."""
+    result = (
+        supabase.table("conversations")
+        .select("id")
+        .eq("id", conversation_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return result.data[0]
+
+
 # -------------------------------------------------------------------
-# AUTH — Supabase email/password, role-based personas
-# -------------------------------------------------------------------
-# -------------------------------------------------------------------
-# AUTH — Supabase email/password
+# AUTH — Supabase email/password (auth.users only, no profiles table)
 # -------------------------------------------------------------------
 async def require_auth(authorization: str | None = Header(default=None)):
     if not SUPABASE_ENABLED:
@@ -244,22 +257,6 @@ async def require_auth(authorization: str | None = Header(default=None)):
     return user_response.user
 
 
-async def get_current_profile(user=Depends(require_auth)):
-    """Fetches role/persona info tied to the authenticated user."""
-    result = supabase.table("profiles").select("*").eq("id", user.id).single().execute()
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Profile not found")
-    return result.data
-
-
-def require_role(*allowed_roles: str):
-    """Gate a route to specific personas: Depends(require_role("ngo_admin"))"""
-    async def checker(profile=Depends(get_current_profile)):
-        if profile["role"] not in allowed_roles:
-            raise HTTPException(status_code=403, detail="Forbidden for this role")
-        return profile
-    return checker
-
 # -------------------------------------------------------------------
 # ROUTES
 # -------------------------------------------------------------------
@@ -269,9 +266,12 @@ def health():
 
 
 @app.post("/api/conversations")
-def create_conversation(req: ConversationCreate):
+def create_conversation(req: ConversationCreate, user=Depends(require_auth)):
     if SUPABASE_ENABLED:
-        result = supabase.table("conversations").insert({"title": req.title}).execute()
+        result = supabase.table("conversations").insert({
+            "title": req.title,
+            "user_id": user.id,
+        }).execute()
         return result.data[0]
 
     conv_id = str(uuid.uuid4())
@@ -282,11 +282,12 @@ def create_conversation(req: ConversationCreate):
 
 
 @app.get("/api/conversations")
-def list_conversations():
+def list_conversations(user=Depends(require_auth)):
     if SUPABASE_ENABLED:
         result = (
             supabase.table("conversations")
             .select("id,title,updated_at")
+            .eq("user_id", user.id)
             .order("updated_at", desc=True)
             .execute()
         )
@@ -296,8 +297,10 @@ def list_conversations():
 
 
 @app.get("/api/conversations/{conversation_id}/messages")
-def get_conversation_messages(conversation_id: str):
+def get_conversation_messages(conversation_id: str, user=Depends(require_auth)):
     if SUPABASE_ENABLED:
+        get_owned_conversation(conversation_id, user.id)
+
         result = (
             supabase.table("messages")
             .select("role,content,image_url")
@@ -311,8 +314,10 @@ def get_conversation_messages(conversation_id: str):
 
 
 @app.delete("/api/conversations/{conversation_id}")
-def delete_conversation(conversation_id: str):
+def delete_conversation(conversation_id: str, user=Depends(require_auth)):
     if SUPABASE_ENABLED:
+        get_owned_conversation(conversation_id, user.id)
+
         supabase.table("messages").delete().eq("conversation_id", conversation_id).execute()
         supabase.table("conversations").delete().eq("id", conversation_id).execute()
     else:
@@ -322,13 +327,16 @@ def delete_conversation(conversation_id: str):
 
 
 @app.post("/api/chat")
-def chat(req: ChatRequest):
+def chat(req: ChatRequest, user=Depends(require_auth)):
+    if SUPABASE_ENABLED:
+        get_owned_conversation(req.conversation_id, user.id)
+
     messages = build_context(req)
 
     # If we have uploaded documents, inject relevant chunks based on the latest question
     if req.messages:
         last_user_msg = req.messages[-1].content
-        relevant_chunks = retrieve_relevant(last_user_msg)
+        relevant_chunks = retrieve_relevant(last_user_msg, user.id)
         if relevant_chunks:
             messages.insert(1, {
                 "role": "system",
@@ -398,7 +406,7 @@ def chat(req: ChatRequest):
 
 
 @app.post("/api/summarize")
-def summarize(req: SummarizeRequest):
+def summarize(req: SummarizeRequest, user=Depends(require_auth)):
     convo_text = "\n".join(f"{m.role}: {m.content}" for m in req.messages)
 
     prompt = (
@@ -418,14 +426,14 @@ def summarize(req: SummarizeRequest):
 
 
 @app.post("/api/upload/document")
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(file: UploadFile = File(...), user=Depends(require_auth)):
     raw = await file.read()
     text = extract_text(file.filename, raw)
     chunks = chunk_text(text)
     embeddings = embedder.encode(chunks)
 
     for chunk, emb in zip(chunks, embeddings):
-        doc_store.append({"text": chunk, "embedding": emb})
+        doc_store.append({"text": chunk, "embedding": emb, "user_id": user.id})
 
     return {"status": "ok", "chunks_added": len(chunks)}
 
@@ -435,7 +443,11 @@ async def chat_vision(
     file: UploadFile = File(...),
     question: str = Form(""),
     conversation_id: str = Form(...),
+    user=Depends(require_auth),
 ):
+    if SUPABASE_ENABLED:
+        get_owned_conversation(conversation_id, user.id)
+
     raw = await file.read()
     b64 = base64.b64encode(raw).decode("utf-8")
 
@@ -463,19 +475,19 @@ async def chat_vision(
 
     return {"reply": reply}
 
+
 @app.post("/api/auth/signup")
 def signup(req: SignUpRequest):
     if not SUPABASE_ENABLED:
         raise HTTPException(status_code=500, detail="Supabase not configured")
 
-    result = supabase.auth.sign_up({"email": req.email, "password": req.password})
+    try:
+        result = supabase.auth.sign_up({"email": req.email, "password": req.password})
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     if not result.user:
         raise HTTPException(status_code=400, detail="Signup failed")
-
-    supabase.table("profiles").insert({
-        "id": result.user.id,
-        "email": req.email,
-    }).execute()
 
     return {
         "user_id": result.user.id,

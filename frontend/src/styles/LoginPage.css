@@ -1,0 +1,147 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f4f6f5;
+  padding: 24px;
+  color-scheme: light;
+}
+
+.login-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 40px 32px;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  color: #111827;
+}
+
+.login-logo {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #2f6f5e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 24px;
+}
+
+.login-card h1 {
+  font-size: 24px;
+  margin-bottom: 4px;
+  color: #111827;
+}
+
+.login-subtitle {
+  color: #6b7280;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.login-card input {
+  width: 100%;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+  color: #111827;
+}
+
+.login-card input::placeholder {
+  color: #9ca3af;
+}
+
+.password-field {
+  position: relative;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.forgot-link {
+  display: block;
+  text-align: right;
+  font-size: 13px;
+  color: #2f6f5e;
+  margin-bottom: 16px;
+  text-decoration: none;
+}
+
+.login-error {
+  color: #dc2626;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.signin-btn {
+  width: 100%;
+  padding: 14px;
+  background: #2f6f5e;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.signin-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 13px;
+  margin: 20px 0;
+}
+.divider::before, .divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid #e5e7eb;
+}
+.divider span { margin: 0 12px; }
+
+.google-btn {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #fff;
+  color: #111827;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.signup-text {
+  font-size: 13px;
+  color: #374151;
+}
+.signup-text a {
+  color: #2f6f5e;
+  font-weight: 600;
+  text-decoration: none;
+}

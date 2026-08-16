@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { signup } from "../api/auth";
+import { supabase, supabaseConfigured } from "../supabaseClient";
 import "../styles/LoginPage.css";
-
-const API_BASE = "http://localhost:8000";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -10,7 +10,27 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Google OAuth creates the account automatically if it doesn't exist yet,
+  // so "sign up with Google" and "sign in with Google" are the same call.
+  const handleGoogleSignIn = async () => {
+    setError("");
+    if (!supabaseConfigured) {
+      setError("Google sign-in isn't configured yet.");
+      return;
+    }
+    setGoogleLoading(true);
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (oauthError) {
+      setError(oauthError.message);
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -18,20 +38,19 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
-      });
+      const data = await signup(email, password);
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.detail || data.message || "Could not create account");
+      // The backend returns access_token/refresh_token (matching /api/auth/login),
+      // not `token` — signup used to store nothing and silently bounce back to
+      // login on the next page load. access_token is only present once Supabase
+      // has an active session (e.g. no email-confirmation step required).
+      if (data.access_token) {
+        localStorage.setItem("token", data.access_token);
+        localStorage.setItem("refresh_token", data.refresh_token);
+        navigate("/chat");
+      } else {
+        navigate("/login");
       }
-
-      localStorage.setItem("token", data.token);
-      navigate("/chat");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -75,6 +94,14 @@ export default function SignupPage() {
             {loading ? "Creating account..." : "Sign Up →"}
           </button>
         </form>
+
+        <div className="divider">
+          <span>OR</span>
+        </div>
+
+        <button className="google-btn" type="button" onClick={handleGoogleSignIn} disabled={googleLoading}>
+          {googleLoading ? "Redirecting..." : "Sign up with Google"}
+        </button>
 
         <p className="signup-text">
           Already have an account? <a href="/login">Sign in</a>

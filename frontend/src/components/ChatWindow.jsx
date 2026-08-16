@@ -7,10 +7,14 @@ import MessageBubble from "./MessageBubble";
  * is still streaming in, so they can't be tapped mid-response.
  */
 function ChatWindow({ messages, onQuickAction, loading }) {
-  const bottomRef = useRef(null);
+  const containerRef = useRef(null);
 
+  // Scroll this container directly rather than calling scrollIntoView on a
+  // sentinel: scrollIntoView also scrolls every scrollable ancestor, which on
+  // mobile fights the browser as it repositions the page around the keyboard.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = containerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   const lastAssistantIndex = [...messages]
@@ -19,7 +23,7 @@ function ChatWindow({ messages, onQuickAction, loading }) {
     .find((m) => m.role === "assistant")?.i;
 
   return (
-    <div className="chat-messages">
+    <div className="chat-messages" ref={containerRef}>
       {messages.length === 0 && (
         <p className="empty-state">Say something, or upload a doc/image to get started.</p>
       )}
@@ -31,7 +35,6 @@ function ChatWindow({ messages, onQuickAction, loading }) {
           onQuickAction={onQuickAction}
         />
       ))}
-      <div ref={bottomRef} />
     </div>
   );
 }

@@ -1,5 +1,9 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap");
 
+/* Layout is mobile-first: the base rules below describe a phone, and the
+   media queries at the bottom of this file widen things out for tablets
+   (>=640px) and dock the sidebar for desktops (>=1024px). */
+
 /* ---------- Design tokens (light theme, matches reference design) ---------- */
 :root {
   --bg: #eef2f0;
@@ -12,6 +16,13 @@
   --accent-hover: #275a4d;
   --accent-soft: #dcece6;
   --accent-ink: #ffffff;
+
+  --sidebar-width: 270px;
+
+  /* The design is light-only, so pin the scheme: without this the browser
+     renders native controls (textarea, scrollbars) dark on a dark-mode
+     phone, against our light surfaces. */
+  color-scheme: light;
 }
 
 * {
@@ -23,14 +34,18 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: "Inter", system-ui, sans-serif;
+  -webkit-text-size-adjust: 100%;   /* stop iOS inflating text in landscape */
 }
 
 /* ---------- Shell ---------- */
 .app-shell {
   display: flex;
   height: 100vh;
+  height: 100dvh;   /* dvh tracks the mobile URL bar collapsing; vh doesn't */
+  width: 100%;
   background: var(--bg);
   position: relative;
+  overflow: hidden;
 }
 
 .chat-container {
@@ -38,7 +53,8 @@ body {
   flex-direction: column;
   flex: 1;
   min-width: 0;
-  max-width: 620px;
+  min-height: 0;
+  width: 100%;
   margin: 0 auto;
   background: var(--bg);
 }
@@ -47,15 +63,18 @@ body {
 .chat-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 18px;
+  gap: 8px;
+  padding: 12px 12px;
+  padding-top: calc(12px + env(safe-area-inset-top));
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: relative;   /* anchors the settings dropdown on wider screens */
 }
 
 .header-icon-button {
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -65,6 +84,7 @@ body {
   cursor: pointer;
   border-radius: 8px;
   flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .header-icon-button:hover {
@@ -75,9 +95,160 @@ body {
   flex: 1;
   text-align: center;
   font-family: "Space Grotesk", sans-serif;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Settings menu ----------
+   Phone-first: a bottom sheet, which is easy to reach one-handed and can't
+   end up half off-screen. From 640px up it becomes a dropdown anchored under
+   the settings button (see the breakpoint at the end of this file). */
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 30, 27, 0.35);
+  z-index: 60;
+}
+
+.settings-menu {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 24px rgba(20, 30, 27, 0.12);
+  animation: sheet-up 0.2s ease;
+}
+
+.settings-menu:focus {
+  outline: none;
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.settings-user {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+  text-align: left;
+}
+
+.settings-user-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.settings-user-email {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  border-radius: 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.settings-item:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.settings-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Two-line row: label with a hint underneath, plus a switch pushed right. */
+.settings-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-item-text small {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+.settings-switch {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background 0.15s ease;
+}
+
+.settings-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(20, 30, 27, 0.25);
+  transition: transform 0.15s ease;
+}
+
+.settings-switch.on {
+  background: var(--accent);
+}
+
+.settings-switch.on::after {
+  transform: translateX(14px);
+}
+
+.settings-item.danger {
+  color: #b3261e;
+}
+
+.settings-item.danger:hover {
+  background: #fdecea;
+}
+
+.settings-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 0;
 }
 
 /* ---------- Sidebar (slide-over drawer) ---------- */
@@ -93,11 +264,14 @@ body {
   top: 0;
   left: 0;
   height: 100vh;
-  width: 270px;
+  height: 100dvh;
+  width: min(85vw, var(--sidebar-width));
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 18px 14px;
+  padding: 14px;
+  padding-top: calc(14px + env(safe-area-inset-top));
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
   background: var(--surface);
   border-right: 1px solid var(--border);
   transform: translateX(-100%);
@@ -107,6 +281,43 @@ body {
 
 .sidebar.open {
   transform: translateX(0);
+}
+
+/* Title + close button. The backdrop closes the drawer too, but on a phone
+   it's only a thin strip, so an explicit target is worth the row. */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sidebar-heading {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.sidebar-close {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sidebar-close:hover {
+  background: var(--surface-2);
+  color: var(--text);
 }
 
 .new-chat-button {
@@ -131,7 +342,9 @@ body {
 
 .conversation-list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -144,18 +357,25 @@ body {
   margin-top: 20px;
 }
 
+/* Titles are short generated headings ("Python List Vs Tuple"), so give
+   them up to two lines rather than clipping everything to one. */
 .conversation-item {
   text-align: left;
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-muted);
-  padding: 9px 10px;
+  padding: 10px;
   border-radius: 8px;
   cursor: pointer;
   font-size: 0.85rem;
-  white-space: nowrap;
+  line-height: 1.35;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .conversation-item:hover {
@@ -172,24 +392,28 @@ body {
 /* ---------- Messages ---------- */
 .chat-messages {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 20px 18px;
+  overscroll-behavior: contain;   /* don't drag the page behind the chat on mobile */
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 12px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .empty-state {
   color: var(--text-muted);
   text-align: center;
-  margin-top: 70px;
+  margin-top: 50px;
+  padding: 0 16px;
   font-size: 0.95rem;
 }
 
 .message-row {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
 }
 
 .message-row.user {
@@ -209,11 +433,13 @@ body {
 }
 
 .message {
-  max-width: 75%;
-  padding: 12px 16px;
+  max-width: 85%;
+  min-width: 0;
+  padding: 11px 14px;
   border-radius: 18px;
   line-height: 1.55;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;   /* long URLs/tokens wrap instead of widening the bubble */
   font-size: 0.95rem;
 }
 
@@ -235,20 +461,133 @@ body {
 }
 
 .message-image {
-  max-width: 220px;
+  max-width: min(220px, 100%);
   border-radius: 10px;
   display: block;
   margin-bottom: 6px;
 }
 
+/* ---------- Markdown inside assistant replies ---------- */
+/* The bubble itself is pre-wrap (so user messages keep their line breaks),
+   but markdown already carries its own block structure — reset it here and
+   let each element bring its own spacing. Everything wide gets its own
+   horizontal scroller so it can never stretch the bubble on a phone. */
+.markdown-content {
+  white-space: normal;
+}
+
+.markdown-content > *:first-child {
+  margin-top: 0;
+}
+
+.markdown-content > *:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content p {
+  margin: 0 0 8px;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+.markdown-content li {
+  margin-bottom: 4px;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 12px 0 6px;
+  line-height: 1.3;
+}
+
+.markdown-content code {
+  display: inline;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  background: var(--surface-2);
+  border-radius: 5px;
+  padding: 2px 5px;
+  color: var(--text);
+}
+
+.markdown-content pre {
+  margin: 8px 0;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.markdown-content pre code {
+  display: block;
+  background: none;
+  padding: 0;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+.markdown-content table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 0.88em;
+}
+
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.markdown-content blockquote {
+  margin: 8px 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--border);
+  color: var(--text-muted);
+}
+
+.markdown-content a {
+  color: var(--accent);
+}
+
+.markdown-content img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.markdown-content hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 10px 0;
+}
+
 .system-note {
   align-self: center;
+  max-width: 100%;
+  text-align: center;
   font-size: 0.78rem;
   color: var(--text-muted);
   background: var(--surface);
   border: 1px solid var(--border);
   padding: 6px 14px;
   border-radius: 999px;
+  overflow-wrap: anywhere;
 }
 
 /* Quick-action pills shown under the latest assistant reply */
@@ -256,7 +595,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 8px 0 0 40px;
+  margin: 8px 0 0 38px;
 }
 
 .quick-action-pill {
@@ -277,8 +616,10 @@ body {
 
 /* ---------- Input area ---------- */
 .chat-input-area {
-  padding: 10px 18px 16px;
+  padding: 8px 12px 10px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
   background: var(--bg);
+  flex-shrink: 0;
 }
 
 .attachment-preview {
@@ -316,7 +657,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 200px;
+  max-width: min(200px, 55vw);
 }
 
 .remove-attachment {
@@ -337,22 +678,26 @@ body {
 .chat-input {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 28px;
-  padding: 6px 8px 6px 12px;
+  padding: 5px 6px 5px 8px;
   box-shadow: 0 1px 3px rgba(20, 30, 27, 0.05);
 }
 
 .chat-input textarea {
   flex: 1;
+  min-width: 0;   /* without this the textarea refuses to shrink past its default width */
   resize: none;
   border: none;
   background: transparent;
   color: var(--text);
   font-family: inherit;
-  font-size: 0.95rem;
+  /* Never below 16px: iOS Safari zooms the whole page in when you focus a
+     field with smaller text, and never zooms back out. */
+  font-size: max(16px, 0.95rem);
+  line-height: 1.4;
   padding: 8px 4px;
   max-height: 120px;
 }
@@ -373,7 +718,7 @@ body {
   text-align: center;
   font-size: 0.72rem;
   color: var(--text-muted);
-  margin: 10px 0 0;
+  margin: 8px 0 0;
 }
 
 /* ---------- Buttons ---------- */
@@ -389,6 +734,7 @@ body {
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .icon-button:hover:not(:disabled) {
@@ -485,4 +831,169 @@ body {
 
 .rate-button:hover {
   color: var(--accent);
+}
+
+.token-count {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  padding: 3px 8px;
+}
+
+/* =========================================================================
+   Responsive breakpoints
+   Base rules above target phones. These widen the layout as space appears.
+   ========================================================================= */
+
+/* --- Very small phones (iPhone SE and friends) ---------------------------
+   Four icon buttons plus a textarea is a lot for a 320px row, so shrink the
+   controls rather than letting the text field collapse to nothing. */
+@media (max-width: 400px) {
+  .icon-button,
+  .send-button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .chat-messages {
+    padding: 12px 10px;
+  }
+
+  .message {
+    max-width: 90%;
+    padding: 10px 12px;
+  }
+
+  .quick-actions {
+    margin-left: 0;
+  }
+}
+
+/* --- Tablets (portrait) and large phones (landscape) --------------------- */
+@media (min-width: 640px) {
+  .chat-container {
+    max-width: 680px;
+  }
+
+  .chat-header {
+    gap: 12px;
+    padding: 14px 18px;
+    padding-top: calc(14px + env(safe-area-inset-top));
+  }
+
+  .chat-messages {
+    padding: 20px 18px;
+    gap: 16px;
+  }
+
+  .message {
+    max-width: 78%;
+    padding: 12px 16px;
+  }
+
+  .chat-input-area {
+    padding: 10px 18px 14px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+
+  .chat-input {
+    gap: 6px;
+    padding: 6px 8px 6px 12px;
+  }
+
+  /* Enough room to anchor the settings menu to its button instead of
+     taking over the bottom of the screen. */
+  .settings-menu {
+    position: absolute;
+    top: calc(100% - 6px);
+    right: 12px;
+    left: auto;
+    bottom: auto;
+    width: 240px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(20, 30, 27, 0.12);
+    animation: menu-in 0.15s ease;
+  }
+
+  .settings-backdrop {
+    background: transparent;   /* a dropdown doesn't need to dim the page */
+  }
+
+  @keyframes menu-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* --- Tablets (landscape) ------------------------------------------------- */
+@media (min-width: 820px) {
+  .chat-container {
+    max-width: 740px;
+  }
+
+  .message {
+    max-width: 75%;
+  }
+}
+
+/* --- Desktop: the drawer becomes a permanent column ----------------------
+   The sidebar stops being an overlay and sits in the flex row, so the
+   hamburger (and its backdrop) are no longer needed. */
+@media (min-width: 1024px) {
+  .sidebar {
+    position: relative;
+    height: auto;
+    width: var(--sidebar-width);
+    flex-shrink: 0;
+    transform: none;
+    transition: none;
+    padding: 18px 14px;
+  }
+
+  .sidebar-backdrop,
+  .sidebar-close,
+  .menu-toggle {
+    display: none;
+  }
+
+  /* With the hamburger gone, centring the title would push it off-centre
+     against the lone settings button — left-align it instead. */
+  .header-title {
+    text-align: left;
+    padding-left: 4px;
+  }
+
+  .chat-container {
+    max-width: 780px;
+  }
+}
+
+/* --- Short viewports (phone in landscape) --------------------------------
+   Vertical space is the scarce resource here, so give it back to the messages. */
+@media (max-height: 480px) and (orientation: landscape) {
+  .chat-header {
+    padding-top: calc(8px + env(safe-area-inset-top));
+    padding-bottom: 8px;
+  }
+
+  .disclaimer {
+    display: none;
+  }
+
+  .empty-state {
+    margin-top: 20px;
+  }
+}
+
+/* Respect "reduce motion" for the drawer slide and the mic pulse. */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+
+  .mic-active,
+  .settings-menu {
+    animation: none;
+  }
 }

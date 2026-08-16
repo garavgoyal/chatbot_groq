@@ -3,8 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <!-- viewport-fit=cover lets the layout paint under the iPhone notch/home
+         indicator; the CSS pads itself back out with env(safe-area-inset-*). -->
+    <!-- interactive-widget: when the on-screen keyboard opens, shrink the
+         layout instead of letting the keyboard cover the input bar. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="theme-color" content="#eef2f0" />
+    <title>AI Assistant</title>
   </head>
   <body>
     <div id="root"></div>

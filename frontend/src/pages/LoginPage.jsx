@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { login } from "../api/auth";
+import { supabase, supabaseConfigured } from "../supabaseClient";
 import "../styles/LoginPage.css";
-
-const API_BASE = "http://localhost:8000";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -10,7 +10,27 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    if (!supabaseConfigured) {
+      setError("Google sign-in isn't configured yet.");
+      return;
+    }
+    setGoogleLoading(true);
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    // On success the browser navigates away to Google immediately, so we
+    // only ever reach here in the failure case.
+    if (oauthError) {
+      setError(oauthError.message);
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -18,19 +38,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(
-          data.detail || data.message || "Invalid email or password",
-        );
-      }
+      const data = await login(email, password);
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("refresh_token", data.refresh_token);
       navigate("/chat");
@@ -89,8 +97,8 @@ export default function LoginPage() {
           <span>OR</span>
         </div>
 
-        <button className="google-btn" type="button">
-          Sign in with Google
+        <button className="google-btn" type="button" onClick={handleGoogleSignIn} disabled={googleLoading}>
+          {googleLoading ? "Redirecting..." : "Sign in with Google"}
         </button>
 
         <p className="signup-text">

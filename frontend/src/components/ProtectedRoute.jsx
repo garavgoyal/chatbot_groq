@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-
-const API_BASE = "http://localhost:8000";
+import { apiFetch } from "../api/client";
 
 export default function ProtectedRoute({ children }) {
   const [status, setStatus] = useState("checking"); // checking | valid | invalid
@@ -14,9 +13,7 @@ export default function ProtectedRoute({ children }) {
       return;
     }
 
-    fetch(`${API_BASE}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    apiFetch("/api/auth/me")
       .then((res) => {
         if (!res.ok) throw new Error("Invalid session");
         setStatus("valid");

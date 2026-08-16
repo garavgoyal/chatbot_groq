@@ -1,17 +1,21 @@
 .login-page {
   min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #f4f6f5;
-  padding: 24px;
+  padding: 24px 16px;
+  padding-top: calc(24px + env(safe-area-inset-top));
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
   color-scheme: light;
 }
 
 .login-card {
   background: #fff;
   border-radius: 20px;
-  padding: 40px 32px;
+  padding: 32px 22px;
   width: 100%;
   max-width: 380px;
   text-align: center;
@@ -49,10 +53,17 @@
   margin-bottom: 14px;
   border: 1px solid #d1d5db;
   border-radius: 12px;
-  font-size: 14px;
+  /* 16px minimum — anything smaller makes iOS Safari zoom the page in on
+     focus and never zoom back out. */
+  font-size: 16px;
   outline: none;
   background: #fff;
   color: #111827;
+  font-family: inherit;
+}
+
+.login-card input:focus {
+  border-color: #2f6f5e;
 }
 
 .login-card input::placeholder {
@@ -63,13 +74,24 @@
   position: relative;
 }
 
+/* Centred against the input (the input's bottom margin collapses out of this
+   wrapper, so 50% is the input's own midpoint) and sized as a real tap target. */
 .toggle-password {
   position: absolute;
-  right: 14px;
-  top: 14px;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .forgot-link {
@@ -144,4 +166,47 @@
   color: #2f6f5e;
   font-weight: 600;
   text-decoration: none;
+}
+
+/* The password field needs room for the eye button on top of the text. */
+.password-field input {
+  padding-right: 48px;
+}
+
+/* ---------- Responsive ---------- */
+
+/* Small phones: let the card use the full width, and stop the rounded
+   corners looking cramped against the screen edge. */
+@media (max-width: 380px) {
+  .login-page {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .login-card {
+    padding: 26px 18px;
+    border-radius: 16px;
+  }
+
+  .login-logo {
+    width: 52px;
+    height: 52px;
+    font-size: 22px;
+  }
+}
+
+/* Tablet and up: a slightly roomier card, now that there's space for it. */
+@media (min-width: 640px) {
+  .login-card {
+    padding: 40px 32px;
+    max-width: 420px;
+  }
+}
+
+/* Phone in landscape — the card is taller than the viewport, so let the page
+   scroll from the top instead of clipping the card's top half. */
+@media (max-height: 560px) {
+  .login-page {
+    align-items: flex-start;
+  }
 }

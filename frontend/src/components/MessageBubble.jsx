@@ -33,7 +33,7 @@ function isDisplayableImage(url) {
 const RATES = [0.75, 1, 1.25, 1.5, 2];
 
 function MessageBubble({ message, showQuickActions, onQuickAction }) {
-  const { role, content, imageUrl } = message;
+  const { role, content, imageUrl, tokens } = message;
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [rateIndex, setRateIndex] = useState(1);
 
@@ -83,6 +83,11 @@ function MessageBubble({ message, showQuickActions, onQuickAction }) {
               <button className="rate-button" onClick={handleRateClick} title="Change speed" type="button">
                 {RATES[rateIndex]}x
               </button>
+              {typeof tokens === "number" && (
+                <span className="token-count" title="Tokens used for this reply">
+                  {tokens.toLocaleString()} tokens
+                </span>
+              )}
             </div>
           )}
         </div>

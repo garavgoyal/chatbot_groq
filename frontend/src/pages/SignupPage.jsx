@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import SignalMark from "../components/SignalMark";
 import "../styles/LoginPage.css";
 
 const API_BASE = "http://localhost:8000";
@@ -40,45 +41,69 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <div className="login-logo">🤖</div>
-        <h1>Sign Up</h1>
-        <p className="login-subtitle">Create your AI Assistant account</p>
+    <div className="auth-page">
+      <div className="auth-brand">
+        <div className="auth-eyebrow">
+          <SignalMark />
+          <span>AI Assistant</span>
+        </div>
+        <h1 className="auth-headline">
+          Start a conversation
+          <br />
+          that keeps up.
+        </h1>
+        <div className="signal-graphic" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
 
-        <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="Full Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-          <input
-            type="email"
-            placeholder="Email Address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+      <div className="auth-panel">
+        <div className="auth-form-wrap">
+          <h2>Create account</h2>
+          <p className="auth-subtitle">Takes about a minute.</p>
 
-          {error && <p className="login-error">{error}</p>}
+          <form onSubmit={handleSubmit}>
+            <label className="auth-label" htmlFor="name">Full name</label>
+            <input
+              id="name"
+              type="text"
+              placeholder="Jamie Rivera"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
 
-          <button type="submit" className="signin-btn" disabled={loading}>
-            {loading ? "Creating account..." : "Sign Up →"}
-          </button>
-        </form>
+            <label className="auth-label" htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
 
-        <p className="signup-text">
-          Already have an account? <a href="/login">Sign in</a>
-        </p>
+            <label className="auth-label" htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+
+            {error && <p className="auth-error">{error}</p>}
+
+            <button type="submit" className="signin-btn" disabled={loading}>
+              {loading ? "Creating account…" : "Sign up"}
+            </button>
+          </form>
+
+          <p className="signup-text">
+            Already have an account? <a href="/login">Sign in</a>
+          </p>
+        </div>
       </div>
     </div>
   );

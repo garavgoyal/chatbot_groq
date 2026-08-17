@@ -28,6 +28,7 @@ function ChatWindow({ messages, onQuickAction, loading }) {
           key={i}
           message={m}
           showQuickActions={i === lastAssistantIndex && !loading && m.content}
+          isStreaming={i === lastAssistantIndex && loading && !m.content}
           onQuickAction={onQuickAction}
         />
       ))}

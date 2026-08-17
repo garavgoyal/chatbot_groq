@@ -287,7 +287,7 @@ function ChatPage() {
 
       <div className="chat-container">
         <header className="chat-header">
-          <button className="header-icon-button" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+          <button className="header-icon-button menu-toggle" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
             {MenuIcon}
           </button>
           <span className="header-title">AI Assistant</span>

@@ -18,6 +18,8 @@ function Sidebar({ conversations, activeId, isOpen, onClose, onSelect, onNewChat
           + New chat
         </button>
 
+        <p className="sidebar-eyebrow">Conversations</p>
+
         <div className="conversation-list">
           {conversations.length === 0 && <p className="sidebar-empty">No conversations yet</p>}
           {conversations.map((c) => (

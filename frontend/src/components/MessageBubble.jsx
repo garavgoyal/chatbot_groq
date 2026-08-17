@@ -2,17 +2,6 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { speak, stopSpeaking } from "./speak";
 
-const BotIcon = (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="5" y="8" width="14" height="11" rx="3" />
-    <path d="M12 8V4" />
-    <circle cx="12" cy="3" r="1" />
-    <circle cx="9" cy="13" r="1" fill="currentColor" />
-    <circle cx="15" cy="13" r="1" fill="currentColor" />
-    <path d="M3 13h2M19 13h2" />
-  </svg>
-);
-
 const SpeakerIcon = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
@@ -32,7 +21,7 @@ function isDisplayableImage(url) {
 
 const RATES = [0.75, 1, 1.25, 1.5, 2];
 
-function MessageBubble({ message, showQuickActions, onQuickAction }) {
+function MessageBubble({ message, showQuickActions, isStreaming, onQuickAction }) {
   const { role, content, imageUrl } = message;
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [rateIndex, setRateIndex] = useState(1);
@@ -60,10 +49,20 @@ function MessageBubble({ message, showQuickActions, onQuickAction }) {
     return <div className="system-note">{content}</div>;
   }
 
+  if (isStreaming) {
+    return (
+      <div className="thinking" aria-label="Assistant is responding">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className={`message-row ${role}`}>
-        {role === "assistant" && <div className="avatar">{BotIcon}</div>}
         <div className={`message ${role}`}>
           {isDisplayableImage(imageUrl) && (
             <img src={imageUrl} alt="uploaded" className="message-image" />
